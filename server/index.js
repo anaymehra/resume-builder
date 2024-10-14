@@ -271,7 +271,7 @@ app.post('/signup', async (req, res) => {
             .insert([{ email, password: hashedPassword }])
             .single();
 
-        if (error) return res.status(400).json({ message: error.message });
+        if (error) return res.status(400).json({ message: "User already exists" });
         
         const token = jwt.sign({ email: user.email, id: user.id }, process.env.JWT_SECRET, { expiresIn: "1h" });
 
