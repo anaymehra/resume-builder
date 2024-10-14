@@ -25,23 +25,14 @@ const app = express();
 app.use(express.json());
 
 const allowedOrigins = [
-    'https://resume-builder-nu-gray.vercel.app',
-    // Add any other origins if needed
+    "https://resume-builder-nu-gray.vercel.app/" // Your deployed frontend
   ];
-  
+
   app.use(cors({
-    origin: (origin, callback) => {
-      if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
-    },
+    origin: allowedOrigins,
+    methods: ["POST"],
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
   }));
-  
 
 
 const authenticateToken = (req, res, next) => {
