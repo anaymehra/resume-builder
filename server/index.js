@@ -27,6 +27,8 @@ const allowedOrigins = [
     methods: ["POST"],
     credentials: true,
   }));
+
+  app.use(express.json());
   
 // Database Connection
 const pool = new Pool({
