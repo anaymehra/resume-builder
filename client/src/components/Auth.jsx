@@ -53,7 +53,7 @@ const Auth = () => {
         setError(data.message)
       }
     } catch (error) {
-      setError(error.message)
+      setError(data.message)
     }
   }
 
