@@ -112,6 +112,7 @@ export default function Component() {
         const token = localStorage.getItem('token');
         const response = await fetch(`${BASE_URL}/submit`, {
           method: 'POST',
+          mode: 'no-cors',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
