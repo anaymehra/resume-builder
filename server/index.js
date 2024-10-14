@@ -23,10 +23,23 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(express.json());
+const allowedOrigins = [
+    'https://resume-builder-nu-gray.vercel.app',
+    // Add any other origins if needed
+];
+
 app.use(cors({
-    origin: 'https://resume-builder-nu-gray.vercel.app', 
+    origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, origin); // allow the requested origin
+        } else {
+            callback(new Error('Not allowed by CORS')); // block the request
+        }
+    },
     credentials: true,
 }));
+
 
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
