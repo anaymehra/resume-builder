@@ -18,14 +18,16 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const allowedOrigins = [
-    "https://resume-builder-nu-gray.vercel.app"
+    "https://resume-builder-nu-gray.vercel.app",
+    "http://localhost:3000" // Add localhost for local testing
   ];
-app.use(cors({
+  
+  app.use(cors({
     origin: allowedOrigins,
     methods: ["POST"],
     credentials: true,
   }));
-
+  
 // Database Connection
 const pool = new Pool({
     user: process.env.PG_USER,

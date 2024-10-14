@@ -36,7 +36,6 @@ const Auth = () => {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Origin': 'https://resume-builder-nu-gray.vercel.app'
         },
         credentials: 'include',
         body: JSON.stringify(body)
