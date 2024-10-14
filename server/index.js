@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import pkg from 'pg';    
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
@@ -8,22 +9,14 @@ import fs from 'fs';
 import { promises as fsPromises } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { createClient } from '@supabase/supabase-js';
 
-// Initialize dotenv
+const { Pool } = pkg;
 dotenv.config();
-
-// Initialize Supabase client
-const supabaseUrl = 'https://ljorinpixezryofhyhgh.supabase.co';
-const supabaseKey = process.env.SUPABASE_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-app.use(express.json());
-
 const allowedOrigins = [
     "https://resume-builder-nu-gray.vercel.app"
   ];
@@ -41,6 +34,14 @@ const allowedOrigins = [
     credentials: true,
   }));
 
+// Database Connection
+const pool = new Pool({
+    user: process.env.PG_USER,
+    host: process.env.PG_HOST,
+    database: process.env.PG_DATABASE,
+    password: process.env.PG_PASSWORD,
+    port: process.env.PG_PORT,
+});
 
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
@@ -240,69 +241,73 @@ const generatePDF = async (data) => {
     });
 };
 
+
+
 app.post('/login', async (req, res) => {
     const { email, password } = req.body;
     try {
-        const { data: existingUser, error } = await supabase
-            .from('users')
-            .select('*')
-            .eq('email', email)
-            .single();
-
-        if (error || !existingUser) return res.status(404).json({ message: "User doesn't exist." });
-        
-        const isPasswordCorrect = await bcrypt.compare(password, existingUser.password);
+        const existingUser = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+        if (existingUser.rows.length === 0) return res.status(404).json({ message: "User doesn't exist." });
+        const isPasswordCorrect = await bcrypt.compare(password, existingUser.rows[0].password);
         if (!isPasswordCorrect) return res.status(400).json({ message: "Invalid email or password." });
 
-        const token = jwt.sign({ email: existingUser.email, id: existingUser.id }, process.env.JWT_SECRET, { expiresIn: "1h" });
+        const token = jwt.sign({ email: existingUser.rows[0].email, id: existingUser.rows[0].id }, process.env.JWT_SECRET, { expiresIn: "1h" });
 
-        res.status(200).json({ result: existingUser, token });
+        res.status(200).json({ name: existingUser.rows[0].name, token });
     } catch (error) {
-        res.status(500).json({ message: "Something went wrong." });
+        console.error("Error During Login", error);
+        res.status(500).json({ message: "Server Error." });
     }
 });
 
 app.post('/signup', async (req, res) => {
-    const { email, password } = req.body;
+    const { email, password, name } = req.body;
     try {
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const { data: user, error } = await supabase
-            .from('users')
-            .insert([{ email, password: hashedPassword }])
-            .single();
-
-        if (error) return res.status(400).json({ message: "User already exists" });
+        const existingUser = await pool.query('SELECT * FROM users WHERE email=$1', [email]);
+        if (existingUser.rows.length > 0) return res.status(409).json({ message: "User already exists." });
         
-        const token = jwt.sign({ email: user.email, id: user.id }, process.env.JWT_SECRET, { expiresIn: "1h" });
-
-        res.status(201).json({ result: user, token });
+        const hashedPassword = await bcrypt.hash(password, 12);
+        const newUser = await pool.query('INSERT INTO users (name, email, password) VALUES ($1, $2, $3) RETURNING *', [
+            name, email, hashedPassword
+        ]);
+        const token = jwt.sign({ email: newUser.rows[0].email, id: newUser.rows[0].id }, process.env.JWT_SECRET, { expiresIn: "1h" });
+        res.status(201).json({ name: newUser.rows[0].name, token });
     } catch (error) {
-        res.status(500).json({ message: "Something went wrong." });
+        console.error("Error During Signup", error);
+        res.status(500).json({ message: "Server Error." });
     }
 });
 
 app.post('/submit', authenticateToken, async (req, res) => {
-    const { data } = req.body;
+    let pdfPath;
     try {
-        const pdfPath = await generatePDF(data);
-
-        // Send the PDF file as a response
-        res.sendFile(pdfPath, (err) => {
+        pdfPath = await generatePDF(req.body);
+        res.download(pdfPath, 'resume.pdf', async (err) => {
             if (err) {
-                console.error('Error sending file:', err);
-                res.status(err.status).end();
-            } else {
-                // Delete the file after sending it
-                fsPromises.unlink(pdfPath).catch(console.error);
+                console.error('Error downloading File', err);
+                return res.status(500).json({ message: 'Error downloading File' });
+            }
+            try {
+                await fsPromises.unlink(pdfPath);
+            } catch (unlinkErr) {
+                console.error('Error deleting File', unlinkErr);
             }
         });
     } catch (error) {
-        res.status(500).json({ message: "Failed to generate PDF." });
+        console.error('Error generating PDF', error);
+        if (pdfPath) {
+            try {
+                await fsPromises.unlink(pdfPath);
+            } catch (unlinkErr) {
+                console.error('Error deleting File', unlinkErr);
+            }
+        }
+        res.status(500).json({ message: 'Server Error' });
     }
 });
 
-// Run the server
-const PORT = process.env.PORT || 5000;
+
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
