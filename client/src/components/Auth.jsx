@@ -49,7 +49,7 @@ const Auth = () => {
       const data = await response.json()
       if (data.token) {
         localStorage.setItem('token', data.token)
-        localStorage.setItem('name', data.result.name || '')
+        localStorage.setItem('name', data.name || '')
         navigate('/home')
       } else {
         setError('Authentication failed. Please try again.')
