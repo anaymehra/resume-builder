@@ -15,7 +15,7 @@ const Auth = () => {
   const [error, setError] = useState(null)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const BASE_URL = 'http://localhost:3000'
+  const BASE_URL = 'https://resume-builder-wyqb.onrender.com'
 
   useEffect(() => {
     // Check for passed state and set the error message if it exists

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 export default function Component() {
-  const BASE_URL = 'http://localhost:3000';
+  const BASE_URL = 'https://resume-builder-wyqb.onrender.com';
   const [formData, setFormData] = useState({
     name: '',
     email: '',
