@@ -90,11 +90,20 @@ const generatePDF = async (data) => {
         ].filter(item => item && item.link);
 
         doc.moveDown(0.5);
+        doc.font('Body').fontSize(10);
+        const socialText = socialLinks.map(item => item.text).join(' | ');
+        const socialTextWidth = doc.widthOfString(socialText);
+        const startX = (pageWidth - socialTextWidth) / 2;
+
         socialLinks.forEach((item, index) => {
             doc.fillColor('blue')
-                .text(item.text, { link: item.link, underline: true, continued: index < socialLinks.length - 1 });
+                .text(item.text, startX + doc.widthOfString(socialLinks.slice(0, index).map(i => i.text + ' | ').join('')), doc.y, { 
+                    link: item.link, 
+                    underline: true, 
+                    continued: index < socialLinks.length - 1 
+                });
             if (index < socialLinks.length - 1) {
-                doc.text(' | ', { continued: true });
+                doc.fillColor('black').text(' | ', { continued: true });
             }
         });
 
@@ -103,16 +112,16 @@ const generatePDF = async (data) => {
         const addSection = (title) => {
             doc.moveDown(1.5);
             doc.font('Heading').fontSize(14).text(title.toUpperCase(), { underline: true });
-            doc.moveDown(1);
+            doc.moveDown(0.5);
         };
 
         // Education Section
         addSection('EDUCATION');
         data.education.forEach(edu => {
-            doc.font('Heading').fontSize(12).text(edu.school, { continued: true }).lineGap(3);
+            doc.font('Heading').fontSize(12).text(edu.school, { continued: true });
             doc.font('Body').fontSize(10).text(`  ${edu.startDate} - ${edu.endDate}`, { align: 'right' });
             doc.font('Body').fontSize(10).text(edu.degree);
-            doc.moveDown(1);
+            doc.moveDown(0.5);
         });
 
         // Experience Section
@@ -126,17 +135,15 @@ const generatePDF = async (data) => {
                     doc.moveDown(0.5);
                     exp.responsibilities.forEach(resp => {
                         if (resp.trim()) {
-                            doc.font('Body').fontSize(10).text(`• ${resp}`, {
-                                indent: 10,
+                            doc.font('Body').fontSize(10).text(`• ${resp}`, { 
+                                indent: 20,
                                 align: 'left',
-                                width: pageWidth - 20,
-                                columns: 1,
-                                continued: false,
-                                hangingIndent: 10 // Adjusted hanging indent
+                                width: pageWidth - 40,
+                                continued: false
                             });
                         }
                     });
-                    doc.moveDown(1);
+                    doc.moveDown(0.5);
                 }
             });
         }
@@ -146,35 +153,41 @@ const generatePDF = async (data) => {
             addSection('PROJECTS');
             data.projects.forEach(project => {
                 doc.font('Heading').fontSize(12).text(project.name, { continued: true });
-                doc.font('Body').fontSize(10).text(` | ${project.technologies}`, { continued: true });
-
-                let linksText = [];
-                if (project.githubLink) linksText.push({ text: 'GitHub', link: project.githubLink });
-                if (project.link) linksText.push({ text: 'Live', link: project.link });
-
-                if (linksText.length > 0) {
-                    doc.text(`  (${linksText.map(l => l.text).join(' | ')})`, {
-                        align: 'right',
-                        link: linksText.length > 1 ? linksText.map(l => l.link) : linksText[0].link
-                    });
-                } else {
-                    doc.text('');
+                doc.font('Body').fontSize(10).text(` | ${project.technologies}`, { continued: false });
+                
+                let linkText = '';
+                if (project.githubLink) {
+                    linkText += 'GitHub';
                 }
-
+                if (project.link) {
+                    if (linkText) linkText += ' | ';
+                    linkText += 'Live';
+                }
+                
+                if (linkText) {
+                    doc.fillColor('blue');
+                    if (project.githubLink) {
+                        doc.text('GitHub', { link: project.githubLink, underline: true, continued: project.link ? true : false });
+                    }
+                    if (project.link) {
+                        if (project.githubLink) doc.fillColor('black').text(' | ', { continued: true });
+                        doc.fillColor('blue').text('Live', { link: project.link, underline: true });
+                    }
+                    doc.fillColor('black');
+                }
+                
                 doc.moveDown(0.5);
                 project.details.forEach(detail => {
                     if (detail.trim()) {
-                        doc.font('Body').fontSize(10).text(`• ${detail}`, {
-                            indent: 10,
+                        doc.font('Body').fontSize(10).text(`• ${detail}`, { 
+                            indent: 20,
                             align: 'left',
-                            width: pageWidth - 20,
-                            columns: 1,
-                            continued: false,
-                            hangingIndent: 10 // Adjusted hanging indent
+                            width: pageWidth - 40,
+                            continued: false
                         });
                     }
                 });
-                doc.moveDown(1);
+                doc.moveDown(0.5);
             });
         }
 
@@ -194,18 +207,15 @@ const generatePDF = async (data) => {
                     addSection(section.title);
                     section.items.forEach(item => {
                         if (item.content) {
-                            doc.font('Body').fontSize(10).text(`• ${item.content}`, {
-                                indent: 10,
+                            doc.font('Body').fontSize(10).text(`• ${item.content}`, { 
+                                indent: 20,
                                 align: 'left',
-                                width: pageWidth - 20,
-                                columns: 1,
-                                continued: item.link ? true : false,
-                                hangingIndent: 10 // Adjusted hanging indent
+                                width: pageWidth - 40,
+                                continued: item.link ? true : false
                             });
                             if (item.link) {
-                                doc.text(` (${item.link})`, { link: item.link });
-                            } else {
-                                doc.text('');
+                                doc.fillColor('blue').text(` (${item.link})`, { link: item.link, underline: true });
+                                doc.fillColor('black');
                             }
                         }
                     });
@@ -213,7 +223,7 @@ const generatePDF = async (data) => {
             });
         }
 
-        // Finalize the PDF
+        // Finalize the PDF without adding page numbers
         doc.end();
 
         stream.on('finish', () => {
