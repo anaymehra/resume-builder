@@ -126,7 +126,7 @@ const generatePDF = async (data) => {
                     doc.moveDown(0.5);
                     exp.responsibilities.forEach(resp => {
                         if (resp.trim()) {
-                            doc.font('Body').fontSize(10).text(`• ${resp}`, { 
+                            doc.font('Body').fontSize(10).text(`• ${resp}`, {
                                 indent: 10,
                                 align: 'left',
                                 width: pageWidth - 20,
@@ -147,30 +147,24 @@ const generatePDF = async (data) => {
             data.projects.forEach(project => {
                 doc.font('Heading').fontSize(12).text(project.name, { continued: true });
                 doc.font('Body').fontSize(10).text(` | ${project.technologies}`, { continued: true });
-                
-                let linkText = '';
-                if (project.githubLink) {
-                    doc.fillColor('blue');
-                    doc.text('GitHub', { link: project.githubLink, underline: true, continued: true });
-                    linkText += 'GitHub';
-                }
-                if (project.link) {
-                    if (linkText) linkText += ' | ';
-                    doc.fillColor('blue');
-                    doc.text('Live', { link: project.link, underline: true });
-                    linkText += 'Live';
-                }
-                
-                if (linkText) {
-                    doc.text(`  (${linkText})`, { align: 'right' });
+
+                let linksText = [];
+                if (project.githubLink) linksText.push({ text: 'GitHub', link: project.githubLink });
+                if (project.link) linksText.push({ text: 'Live', link: project.link });
+
+                if (linksText.length > 0) {
+                    doc.text(`  (${linksText.map(l => l.text).join(' | ')})`, {
+                        align: 'right',
+                        link: linksText.length > 1 ? linksText.map(l => l.link) : linksText[0].link
+                    });
                 } else {
-                    doc.text(''); // empty line if no links
+                    doc.text('');
                 }
-                
+
                 doc.moveDown(0.5);
                 project.details.forEach(detail => {
                     if (detail.trim()) {
-                        doc.font('Body').fontSize(10).text(`• ${detail}`, { 
+                        doc.font('Body').fontSize(10).text(`• ${detail}`, {
                             indent: 10,
                             align: 'left',
                             width: pageWidth - 20,
@@ -200,7 +194,7 @@ const generatePDF = async (data) => {
                     addSection(section.title);
                     section.items.forEach(item => {
                         if (item.content) {
-                            doc.font('Body').fontSize(10).text(`• ${item.content}`, { 
+                            doc.font('Body').fontSize(10).text(`• ${item.content}`, {
                                 indent: 10,
                                 align: 'left',
                                 width: pageWidth - 20,
@@ -211,7 +205,7 @@ const generatePDF = async (data) => {
                             if (item.link) {
                                 doc.text(` (${item.link})`, { link: item.link });
                             } else {
-                                doc.text(''); // empty line if no link
+                                doc.text('');
                             }
                         }
                     });
@@ -219,7 +213,7 @@ const generatePDF = async (data) => {
             });
         }
 
-        // Finalize the PDF without adding page numbers
+        // Finalize the PDF
         doc.end();
 
         stream.on('finish', () => {
