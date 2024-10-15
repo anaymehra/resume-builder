@@ -91,37 +91,39 @@ const generatePDF = async (data) => {
 
         doc.moveDown(0.5);
         doc.font('Body').fontSize(10);
-        const socialText = socialLinks.map(item => item.text).join(' | ');
-        const socialTextWidth = doc.widthOfString(socialText);
+        const socialTextWidth = socialLinks.reduce((width, item) => width + doc.widthOfString(item.text) + doc.widthOfString(' | '), 0) - doc.widthOfString(' | ');
         const startX = (pageWidth - socialTextWidth) / 2;
+        let currentX = startX;
 
         socialLinks.forEach((item, index) => {
             doc.fillColor('blue')
-                .text(item.text, startX + doc.widthOfString(socialLinks.slice(0, index).map(i => i.text + ' | ').join('')), doc.y, { 
+                .text(item.text, currentX, doc.y, { 
                     link: item.link, 
                     underline: true, 
                     continued: index < socialLinks.length - 1 
                 });
+            currentX += doc.widthOfString(item.text);
             if (index < socialLinks.length - 1) {
                 doc.fillColor('black').text(' | ', { continued: true });
+                currentX += doc.widthOfString(' | ');
             }
         });
 
-        doc.fillColor('black').moveDown(1.5);
+        doc.fillColor('black').moveDown(2);
 
         const addSection = (title) => {
-            doc.moveDown(1.5);
-            doc.font('Heading').fontSize(14).text(title.toUpperCase(), { underline: true });
             doc.moveDown(1);
+            doc.font('Heading').fontSize(14).text(title.toUpperCase(), { underline: true });
+            doc.moveDown(0.5);
         };
 
         // Education Section
         addSection('EDUCATION');
         data.education.forEach(edu => {
-            doc.font('Heading').fontSize(12).text(edu.school, { continued: true });
-            doc.font('Body').fontSize(10).text(`  ${edu.startDate} - ${edu.endDate}`, { align: 'right' });
+            doc.font('Heading').fontSize(12).text(edu.school, { continued: true })
+               .font('Body').fontSize(10).text(`  ${edu.startDate} - ${edu.endDate}`, { align: 'right' });
             doc.font('Body').fontSize(10).text(edu.degree);
-            doc.moveDown(1);
+            doc.moveDown(0.5);
         });
 
         // Projects Section
@@ -132,14 +134,18 @@ const generatePDF = async (data) => {
                 doc.font('Body').fontSize(10).text(`Technologies: ${project.technologies}`);
                 
                 // Add GitHub and Live links as bullet points
+                const bulletPoint = '• ';
+                const bulletIndent = 10;
                 if (project.githubLink) {
-                    doc.text(`• GitHub: `, { continued: true })
+                    doc.text(bulletPoint, { continued: true, indent: bulletIndent })
+                       .text('GitHub: ', { continued: true })
                        .fillColor('blue')
                        .text('Link', { link: project.githubLink, underline: true })
                        .fillColor('black');
                 }
                 if (project.link) {
-                    doc.text(`• Live: `, { continued: true })
+                    doc.text(bulletPoint, { continued: true, indent: bulletIndent })
+                       .text('Live: ', { continued: true })
                        .fillColor('blue')
                        .text('Link', { link: project.link, underline: true })
                        .fillColor('black');
@@ -148,15 +154,16 @@ const generatePDF = async (data) => {
                 doc.moveDown(0.5);
                 project.details.forEach(detail => {
                     if (detail.trim()) {
-                        doc.font('Body').fontSize(10).text(`• ${detail}`, { 
-                            indent: 20,
-                            align: 'left',
-                            width: pageWidth - 40,
-                            continued: false
-                        });
+                        doc.text(bulletPoint, { continued: true, indent: bulletIndent })
+                           .text(detail, { 
+                                indent: bulletIndent + doc.widthOfString(bulletPoint),
+                                align: 'left',
+                                width: pageWidth - (bulletIndent + doc.widthOfString(bulletPoint)),
+                                continued: false
+                            });
                     }
                 });
-                doc.moveDown(1);
+                doc.moveDown(0.5);
             });
         }
 
@@ -176,12 +183,13 @@ const generatePDF = async (data) => {
                     addSection(section.title);
                     section.items.forEach(item => {
                         if (item.content) {
-                            doc.font('Body').fontSize(10).text(`• ${item.content}`, { 
-                                indent: 20,
-                                align: 'left',
-                                width: pageWidth - 40,
-                                continued: item.link ? true : false
-                            });
+                            doc.text(bulletPoint, { continued: true, indent: bulletIndent })
+                               .font('Body').fontSize(10).text(item.content, { 
+                                    indent: bulletIndent + doc.widthOfString(bulletPoint),
+                                    align: 'left',
+                                    width: pageWidth - (bulletIndent + doc.widthOfString(bulletPoint)),
+                                    continued: item.link ? true : false
+                                });
                             if (item.link) {
                                 doc.fillColor('blue').text(` (${item.link})`, { link: item.link, underline: true });
                                 doc.fillColor('black');
