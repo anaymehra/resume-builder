@@ -168,7 +168,7 @@ const generatePDF = async (data) => {
                     });
                 }
 
-                doc.moveDown(0.5);
+                doc.fillColor('black').moveDown(0.5);
                 project.details.forEach(detail => {
                     if (detail.trim()) {
                         doc.font('Body').fontSize(10).text(`• ${detail}`, {
@@ -181,7 +181,7 @@ const generatePDF = async (data) => {
                         });
                     }
                 });
-                doc.fillColor('black').moveDown(1);
+                doc.moveDown(1);
             });
         }
 
