@@ -112,7 +112,7 @@ const generatePDF = async (data) => {
         const addSection = (title) => {
             doc.moveDown(1.5);
             doc.font('Heading').fontSize(14).text(title.toUpperCase(), { underline: true });
-            doc.moveDown(0.5);
+            doc.moveDown(1);
         };
 
         // Education Section
@@ -121,59 +121,28 @@ const generatePDF = async (data) => {
             doc.font('Heading').fontSize(12).text(edu.school, { continued: true });
             doc.font('Body').fontSize(10).text(`  ${edu.startDate} - ${edu.endDate}`, { align: 'right' });
             doc.font('Body').fontSize(10).text(edu.degree);
-            doc.moveDown(0.5);
+            doc.moveDown(1);
         });
-
-        // Experience Section
-        if (data.experience.some(exp => exp.title || exp.company)) {
-            addSection('EXPERIENCE');
-            data.experience.forEach(exp => {
-                if (exp.title || exp.company) {
-                    doc.font('Heading').fontSize(12).text(exp.title, { continued: true });
-                    doc.font('Body').fontSize(10).text(`  ${exp.startDate} - ${exp.endDate}`, { align: 'right' });
-                    doc.font('Body').fontSize(10).text(`${exp.company}, ${exp.location}`);
-                    doc.moveDown(0.5);
-                    exp.responsibilities.forEach(resp => {
-                        if (resp.trim()) {
-                            doc.font('Body').fontSize(10).text(`• ${resp}`, { 
-                                indent: 20,
-                                align: 'left',
-                                width: pageWidth - 40,
-                                continued: false
-                            });
-                        }
-                    });
-                    doc.moveDown(0.5);
-                }
-            });
-        }
 
         // Projects Section
         if (data.projects.some(project => project.name)) {
             addSection('PROJECTS');
             data.projects.forEach(project => {
-                doc.font('Heading').fontSize(12).text(project.name, { continued: true });
-                doc.font('Body').fontSize(10).text(` | ${project.technologies}`, { continued: false });
+                doc.font('Heading').fontSize(12).text(project.name);
+                doc.font('Body').fontSize(10).text(`Technologies: ${project.technologies}`);
                 
-                let linkText = '';
+                // Add GitHub and Live links as bullet points
                 if (project.githubLink) {
-                    linkText += 'GitHub';
+                    doc.text(`• GitHub: `, { continued: true })
+                       .fillColor('blue')
+                       .text('Link', { link: project.githubLink, underline: true })
+                       .fillColor('black');
                 }
                 if (project.link) {
-                    if (linkText) linkText += ' | ';
-                    linkText += 'Live';
-                }
-                
-                if (linkText) {
-                    doc.fillColor('blue');
-                    if (project.githubLink) {
-                        doc.text('GitHub', { link: project.githubLink, underline: true, continued: project.link ? true : false });
-                    }
-                    if (project.link) {
-                        if (project.githubLink) doc.fillColor('black').text(' | ', { continued: true });
-                        doc.fillColor('blue').text('Live', { link: project.link, underline: true });
-                    }
-                    doc.fillColor('black');
+                    doc.text(`• Live: `, { continued: true })
+                       .fillColor('blue')
+                       .text('Link', { link: project.link, underline: true })
+                       .fillColor('black');
                 }
                 
                 doc.moveDown(0.5);
@@ -187,7 +156,7 @@ const generatePDF = async (data) => {
                         });
                     }
                 });
-                doc.moveDown(0.5);
+                doc.moveDown(1);
             });
         }
 
