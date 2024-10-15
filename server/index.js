@@ -146,7 +146,7 @@ const generatePDF = async (data) => {
             addSection('PROJECTS');
             data.projects.forEach(project => {
                 doc.font('Heading').fontSize(12).text(`${project.name}`, { continued: true });
-                doc.font('Body').fontSize(10).text(` | ${project.technologies}`, { continued: true });
+                doc.font('Body').fontSize(10).text(` | ${project.technologies} | `, { continued: true });
 
                 // Add GitHub and Live links as embedded hyperlinks
                 const links = [];
@@ -181,7 +181,7 @@ const generatePDF = async (data) => {
                         });
                     }
                 });
-                doc.moveDown(1);
+                doc.fillColor('black').moveDown(1);
             });
         }
 
