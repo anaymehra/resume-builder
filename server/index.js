@@ -145,15 +145,15 @@ const generatePDF = async (data) => {
         if (data.projects.some(project => project.name)) {
             addSection('PROJECTS');
             data.projects.forEach(project => {
-                doc.font('Heading').fontSize(12).text(project.name, { continued: true });
+                doc.font('Heading').fontSize(12).text(`${project.name}`, { continued: true });
                 doc.font('Body').fontSize(10).text(` | ${project.technologies}`, { continued: true });
                 
-                let linkText = '';
-                if (project.githubLink) linkText += 'GitHub';
-                if (project.link) linkText += linkText ? ' | Live' : 'Live';
+                let links = '';
+                if (project.githubLink) links += 'GitHub';
+                if (project.link) links += links ? ' | Live' : 'Live';
                 
-                if (linkText) {
-                    doc.text(`  (${linkText})`, { align: 'right' });
+                if (links) {
+                    doc.text(`  (${links})`, { align: 'right' });
                 } else {
                     doc.text('');
                 }
@@ -235,7 +235,8 @@ const generatePDF = async (data) => {
 
         stream.on('error', reject);
     });
-}; 
+};
+
 
 
 app.post('/login', async (req, res) => {
