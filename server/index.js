@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import pkg from 'pg';    
+import pkg from 'pg';
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
@@ -20,16 +20,16 @@ const app = express();
 const allowedOrigins = [
     "https://resume-builder-nu-gray.vercel.app",
     "http://localhost:3000" // Add localhost for local testing
-  ];
-  
-  app.use(cors({
+];
+
+app.use(cors({
     origin: allowedOrigins,
     methods: ["POST"],
     credentials: true,
-  }));
+}));
 
-  app.use(express.json());
-  
+app.use(express.json());
+
 // Database Connection
 const pool = new Pool({
     user: process.env.PG_USER,
@@ -42,13 +42,13 @@ const pool = new Pool({
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
-  
+
     if (token == null) return res.sendStatus(401);
-  
+
     jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-      if (err) return res.sendStatus(403);
-      req.user = user;
-      next();
+        if (err) return res.sendStatus(403);
+        req.user = user;
+        next();
     });
 };
 
@@ -126,7 +126,7 @@ const generatePDF = async (data) => {
                     doc.moveDown(0.5);
                     exp.responsibilities.forEach(resp => {
                         if (resp.trim()) {
-                            doc.font('Body').fontSize(10).text(`• ${resp}`, { 
+                            doc.font('Body').fontSize(10).text(`• ${resp}`, {
                                 indent: 10,
                                 align: 'left',
                                 width: pageWidth - 20,
@@ -147,21 +147,31 @@ const generatePDF = async (data) => {
             data.projects.forEach(project => {
                 doc.font('Heading').fontSize(12).text(`${project.name}`, { continued: true });
                 doc.font('Body').fontSize(10).text(` | ${project.technologies}`, { continued: true });
-                
-                let links = '';
-                if (project.githubLink) links += 'GitHub';
-                if (project.link) links += links ? ' | Live' : 'Live';
-                
-                if (links) {
-                    doc.text(`  (${links})`, { align: 'right' });
-                } else {
-                    doc.text('');
+
+                // Add GitHub and Live links as embedded hyperlinks
+                const links = [];
+                if (project.githubLink) {
+                    links.push({ text: 'GitHub', link: project.githubLink });
                 }
-                
+                if (project.link) {
+                    links.push({ text: 'Live', link: project.link });
+                }
+
+                // Display links
+                if (links.length > 0) {
+                    links.forEach((item, index) => {
+                        doc.fillColor('blue')
+                            .text(item.text, { link: item.link, underline: true, continued: index < links.length - 1 });
+                        if (index < links.length - 1) {
+                            doc.text(' | ', { continued: true });
+                        }
+                    });
+                }
+
                 doc.moveDown(0.5);
                 project.details.forEach(detail => {
                     if (detail.trim()) {
-                        doc.font('Body').fontSize(10).text(`• ${detail}`, { 
+                        doc.font('Body').fontSize(10).text(`• ${detail}`, {
                             indent: 10,
                             align: 'left',
                             width: pageWidth - 20,
@@ -174,6 +184,7 @@ const generatePDF = async (data) => {
                 doc.moveDown(1);
             });
         }
+
 
         // Technical Skills Section
         addSection('TECHNICAL SKILLS');
@@ -191,7 +202,7 @@ const generatePDF = async (data) => {
                     addSection(section.title);
                     section.items.forEach(item => {
                         if (item.content) {
-                            doc.font('Body').fontSize(10).text(`• ${item.content}`, { 
+                            doc.font('Body').fontSize(10).text(`• ${item.content}`, {
                                 indent: 10,
                                 align: 'left',
                                 width: pageWidth - 20,
@@ -214,7 +225,7 @@ const generatePDF = async (data) => {
         const pages = doc.bufferedPageRange();
         for (let i = 0; i < pages.count; i++) {
             doc.switchToPage(i);
-            
+
             // Add page number at the bottom
             const oldBottomMargin = doc.page.margins.bottom;
             doc.page.margins.bottom = 0
@@ -261,7 +272,7 @@ app.post('/signup', async (req, res) => {
     try {
         const existingUser = await pool.query('SELECT * FROM users WHERE email=$1', [email]);
         if (existingUser.rows.length > 0) return res.status(409).json({ message: "User already exists." });
-        
+
         const hashedPassword = await bcrypt.hash(password, 12);
         const newUser = await pool.query('INSERT INTO users (name, email, password) VALUES ($1, $2, $3) RETURNING *', [
             name, email, hashedPassword
