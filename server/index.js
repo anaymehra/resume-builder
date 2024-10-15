@@ -235,8 +235,7 @@ const generatePDF = async (data) => {
 
         stream.on('error', reject);
     });
-};
-
+}; 
 
 
 app.post('/login', async (req, res) => {
