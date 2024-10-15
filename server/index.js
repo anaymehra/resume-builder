@@ -57,8 +57,7 @@ const generatePDF = async (data) => {
     return new Promise((resolve, reject) => {
         const doc = new PDFDocument({
             size: 'A4',
-            margins: { top: 50, left: 50, right: 50, bottom: 50 },
-            bufferPages: true
+            margins: { top: 72, left: 72, right: 72, bottom: 72 }
         });
 
         const pdfPath = path.join(__dirname, 'resume.pdf');
@@ -70,162 +69,116 @@ const generatePDF = async (data) => {
         doc.registerFont('Heading', path.join(fontPath, 'TimesNewRoman-Bold.ttf'));
         doc.registerFont('Body', path.join(fontPath, 'Arial.ttf'));
 
-        const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-
         // Name
         doc.font('Heading').fontSize(24).text(data.name, { align: 'center' });
-
-        // Contact info (email and phone)
-        doc.moveDown(0.5);
-        doc.font('Body').fontSize(10)
-            .text(data.email, { align: 'center' })
-            .text(data.phone, { align: 'center' });
-
-        // Social links in one line
-        const socialLinks = [
+        
+        // Contact info
+        const contactInfo = [
+            data.email,
+            data.phone,
             { text: 'LinkedIn', link: data.linkedin },
             { text: 'GitHub', link: data.github },
             { text: 'Twitter', link: data.twitter },
             { text: 'Portfolio', link: data.portfolio }
-        ].filter(item => item && item.link);
+        ].filter(item => item && (typeof item === 'string' ? item.trim() : item.link.trim()));
 
-        doc.moveDown(0.5);
-        socialLinks.forEach((item, index) => {
-            doc.fillColor('blue')
-                .text(item.text, { link: item.link, underline: true, continued: index < socialLinks.length - 1 });
-            if (index < socialLinks.length - 1) {
-                doc.text(' | ', { continued: true });
+        doc.font('Body').fontSize(10);
+        let xPos = doc.page.width / 2;
+        contactInfo.forEach((item, index) => {
+            if (typeof item === 'string') {
+                doc.text(item, xPos, doc.y, { align: 'center' });
+            } else {
+                doc.fillColor('blue').text(item.text, xPos, doc.y, { align: 'center', link: item.link, underline: true });
+            }
+            if (index < contactInfo.length - 1) {
+                doc.fillColor('black').text(' | ', xPos, doc.y, { align: 'center' });
             }
         });
-
-        doc.fillColor('black').moveDown(1.5);
-
-        const addSection = (title) => {
+        doc.fillColor('black');
+        
+        const addSection = (title, githubLink) => {
             doc.moveDown(1.5);
             doc.font('Heading').fontSize(14).text(title.toUpperCase(), { underline: true });
-            doc.moveDown(1);
+            if (githubLink) {
+                doc.fontSize(10).fillColor('blue').text('GitHub', { link: githubLink, align: 'right', continued: true })
+                   .fillColor('black').text(' | ', { align: 'right', continued: true })
+                   .fillColor('blue').text('Live', { link: githubLink, align: 'right' });
+            }
+            doc.moveDown(0.5);
         };
 
-        // Education Section
+        // Education
         addSection('EDUCATION');
         data.education.forEach(edu => {
-            doc.font('Heading').fontSize(12).text(edu.school, { continued: true }).lineGap(3);
-            doc.font('Body').fontSize(10).text(`  ${edu.startDate} - ${edu.endDate}`, { align: 'right' });
-            doc.font('Body').fontSize(10).text(edu.degree);
-            doc.moveDown(1);
+            doc.font('Heading').fontSize(12).text(edu.school);
+            doc.font('Body').fontSize(10).text(`${edu.degree}`);
+            doc.font('Body').fontSize(10).text(`${edu.startDate} - ${edu.endDate}`, { align: 'right' });
+            doc.moveDown(0.5);
         });
 
-        // Experience Section
+        // Experience
         if (data.experience.some(exp => exp.title || exp.company)) {
             addSection('EXPERIENCE');
             data.experience.forEach(exp => {
                 if (exp.title || exp.company) {
-                    doc.font('Heading').fontSize(12).text(exp.title, { continued: true });
-                    doc.font('Body').fontSize(10).text(`  ${exp.startDate} - ${exp.endDate}`, { align: 'right' });
+                    doc.font('Heading').fontSize(12).text(exp.title);
                     doc.font('Body').fontSize(10).text(`${exp.company}, ${exp.location}`);
-                    doc.moveDown(0.5);
+                    doc.font('Body').fontSize(10).text(`${exp.startDate} - ${exp.endDate}`, { align: 'right' });
                     exp.responsibilities.forEach(resp => {
                         if (resp.trim()) {
-                            doc.font('Body').fontSize(10).text(`• ${resp}`, { 
-                                indent: 10,
-                                align: 'left',
-                                width: pageWidth - 20,
-                                columns: 1,
-                                continued: false,
-                                hangingIndent: 10 // Adjusted hanging indent
-                            });
+                            doc.font('Body').fontSize(10).text(`• ${resp}`, { indent: 20 });
                         }
                     });
-                    doc.moveDown(1);
+                    doc.moveDown(0.5);
                 }
             });
         }
 
-        // Projects Section
-        if (data.projects.some(project => project.name)) {
-            addSection('PROJECTS');
-            data.projects.forEach(project => {
-                doc.font('Heading').fontSize(12).text(project.name, { continued: true });
-                doc.font('Body').fontSize(10).text(` | ${project.technologies}`, { continued: true });
-                
-                let linkText = '';
-                if (project.githubLink) linkText += 'GitHub';
-                if (project.link) linkText += linkText ? ' | Live' : 'Live';
-                
-                if (linkText) {
-                    doc.text(`  (${linkText})`, { align: 'right' });
-                } else {
-                    doc.text('');
+        // Projects
+        addSection('PROJECTS');
+        data.projects.forEach(project => {
+            doc.font('Heading').fontSize(12).text(project.name, { continued: true });
+            if (project.githubLink) {
+                doc.fillColor('blue').text('GitHub', { link: project.githubLink, underline: true });
+                if (project.link) doc.fillColor('black').text(' | ');
+            }
+            if (project.link) {
+                doc.fillColor('blue').text('Live', { link: project.link, underline: true });
+            }
+            doc.fillColor('black').text('');
+            doc.font('Body').fontSize(10).text(`Technologies: ${project.technologies}`);
+            doc.font('Body').fontSize(10).text(`${project.startDate} - ${project.endDate}`, { align: 'right' });
+            project.details.forEach(detail => {
+                if (detail.trim()) {
+                    doc.font('Body').fontSize(10).text(`• ${detail}`, { indent: 20 });
                 }
-                
-                doc.moveDown(0.5);
-                project.details.forEach(detail => {
-                    if (detail.trim()) {
-                        doc.font('Body').fontSize(10).text(`• ${detail}`, { 
-                            indent: 10,
-                            align: 'left',
-                            width: pageWidth - 20,
-                            columns: 1,
-                            continued: false,
-                            hangingIndent: 10 // Adjusted hanging indent
-                        });
-                    }
-                });
-                doc.moveDown(1);
             });
-        }
+            doc.moveDown(0.5);
+        });
 
-        // Technical Skills Section
+        // Technical Skills
         addSection('TECHNICAL SKILLS');
         Object.entries(data.technicalSkills).forEach(([key, value]) => {
             if (value) {
                 doc.font('Heading').fontSize(10).text(`${key.charAt(0).toUpperCase() + key.slice(1)}: `, { continued: true });
-                doc.font('Body').text(value, { width: pageWidth });
+                doc.font('Body').text(value);
             }
         });
 
         // Custom Sections
-        if (data.customSections && data.customSections.length > 0) {
-            data.customSections.forEach(section => {
-                if (section.title && section.items && section.items.length > 0) {
-                    addSection(section.title);
-                    section.items.forEach(item => {
-                        if (item.content) {
-                            doc.font('Body').fontSize(10).text(`• ${item.content}`, { 
-                                indent: 10,
-                                align: 'left',
-                                width: pageWidth - 20,
-                                columns: 1,
-                                continued: item.link ? true : false,
-                                hangingIndent: 10 // Adjusted hanging indent
-                            });
-                            if (item.link) {
-                                doc.text(` (${item.link})`, { link: item.link });
-                            } else {
-                                doc.text('');
-                            }
-                        }
-                    });
+        data.customSections.forEach(section => {
+            addSection(section.title);
+            section.items.forEach(item => {
+                if (item.content.trim()) {
+                    if (item.link) {
+                        doc.font('Body').fontSize(10).text(`• `, { continued: true })
+                           .fillColor('blue').text(item.content, { link: item.link, underline: true });
+                    } else {
+                        doc.font('Body').fontSize(10).text(`• ${item.content}`);
+                    }
                 }
             });
-        }
-
-        // Finalize the PDF and create a new page if content overflows
-        const pages = doc.bufferedPageRange();
-        for (let i = 0; i < pages.count; i++) {
-            doc.switchToPage(i);
-            
-            // Add page number at the bottom
-            const oldBottomMargin = doc.page.margins.bottom;
-            doc.page.margins.bottom = 0
-            doc.text(
-                `Page ${i + 1} of ${pages.count}`,
-                0,
-                doc.page.height - 50,
-                { align: 'center' }
-            );
-            doc.page.margins.bottom = oldBottomMargin;
-        }
+        });
 
         doc.end();
 
@@ -236,6 +189,7 @@ const generatePDF = async (data) => {
         stream.on('error', reject);
     });
 };
+
 
 
 
