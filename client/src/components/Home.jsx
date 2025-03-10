@@ -18,6 +18,7 @@ export default function Component() {
     customSections: [{ title: '', items: [{ content: '', link: '' }] }]
   });
   const [errors, setErrors] = useState({});
+  const [debugInfo, setDebugInfo] = useState(null);
   const navigate = useNavigate();
 
   const handleChange = (e, section, index, subfield, subIndex) => {
@@ -147,6 +148,7 @@ export default function Component() {
   const AIPromptInput = ({ section, index, context }) => {
     const [localPrompt, setLocalPrompt] = useState('');
     const [isLocalGenerating, setIsLocalGenerating] = useState(false);
+    const [localError, setLocalError] = useState(null);
 
     const handleLocalGenerate = async () => {
       if (!localPrompt.trim()) {
@@ -162,25 +164,43 @@ export default function Component() {
       }
 
       setIsLocalGenerating(true);
+      setLocalError(null);
+      setDebugInfo(null);
+      
       try {
+        console.log(`Sending request to ${BASE_URL}/generate-content`);
+        const requestData = {
+          prompt: localPrompt,
+          section: section,
+          context: context
+        };
+        
+        console.log('Request data:', requestData);
+        
         const response = await fetch(`${BASE_URL}/generate-content`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify({
-            prompt: localPrompt,
-            section: section,
-            context: context
-          })
+          body: JSON.stringify(requestData)
         });
 
+        console.log('Response status:', response.status);
+        
         if (!response.ok) {
-          throw new Error('Failed to generate content');
+          const errorText = await response.text();
+          console.error('Error response:', errorText);
+          setDebugInfo({
+            status: response.status,
+            statusText: response.statusText,
+            errorText: errorText
+          });
+          throw new Error(`Failed to generate content: ${response.status} ${response.statusText}`);
         }
 
         const result = await response.json();
+        console.log('Response data:', result);
         
         if (result.success) {
           // Handle different response formats based on section
@@ -221,20 +241,20 @@ export default function Component() {
           // Clear the prompt after successful generation
           setLocalPrompt('');
         } else {
-          alert('Failed to generate content. Please try again.');
+          setLocalError(result.message || 'Failed to generate content. Please try again.');
         }
       } catch (error) {
         console.error('Error generating AI content:', error);
-        alert('Error generating content. Please try again.');
+        setLocalError(error.message || 'Error generating content. Please try again.');
       } finally {
         setIsLocalGenerating(false);
       }
     };
 
     return (
-      <div className="mt-4 border-t pt-4 bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-lg shadow-sm">
+      <div className="mt-4 border-t pt-4 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg shadow-sm">
         <div className="flex items-center mb-2">
-          <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mr-2">
+          <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center mr-2">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
@@ -248,13 +268,13 @@ export default function Component() {
             placeholder="Ask AI to generate professional content for this section..."
             value={localPrompt}
             onChange={(e) => setLocalPrompt(e.target.value)}
-            className="w-full px-4 py-3 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 pr-24"
+            className="w-full px-4 py-3 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pr-24"
           />
           <button
             type="button"
             onClick={handleLocalGenerate}
             disabled={isLocalGenerating}
-            className="absolute right-2 top-2 px-4 py-1 border border-transparent text-sm font-medium rounded-md text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 transition-all duration-200"
+            className="absolute right-2 top-2 px-4 py-1 border border-transparent text-sm font-medium rounded-md text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-all duration-200"
           >
             {isLocalGenerating ? 
               <span className="flex items-center">
@@ -268,15 +288,22 @@ export default function Component() {
             }
           </button>
         </div>
+        
+        {localError && (
+          <p className="mt-2 text-sm text-red-600">
+            Error: {localError}
+          </p>
+        )}
+        
         <p className="text-xs text-gray-500 mt-2 italic">
-          Tip: Try "Generate bullet points highlighting my leadership skills" or "Create technical descriptions for my project"
+          Tip: Try "Generate bullet points about my project achievements" or "Create technical descriptions for my skills"
         </p>
       </div>
     );
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center p-4">
       <div className="bg-white p-8 rounded-lg shadow-xl max-w-4xl w-full">
         <h1 className="text-4xl font-bold text-center mb-6 text-gray-800">
           Create Your Perfect Resume
@@ -284,6 +311,22 @@ export default function Component() {
         <p className="text-center text-gray-600 mb-8">
           Easily create the perfect resume for any job using our best-in-class resume builder platform.
         </p>
+        
+        {debugInfo && (
+          <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+            <h3 className="font-semibold text-yellow-800">Debug Information</h3>
+            <p className="text-sm text-yellow-700">Status: {debugInfo.status} {debugInfo.statusText}</p>
+            {debugInfo.errorText && (
+              <pre className="mt-2 text-xs bg-yellow-100 p-2 rounded overflow-auto max-h-32">
+                {debugInfo.errorText}
+              </pre>
+            )}
+            <p className="text-xs mt-2 text-yellow-600">
+              Note: This error might be related to your Gemini API key configuration. Please check your server logs.
+            </p>
+          </div>
+        )}
+        
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Personal Information */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -295,7 +338,7 @@ export default function Component() {
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
-                className={`mt-1 block w-full px-3 py-2 bg-white border ${errors.name ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500`}
+                className={`mt-1 block w-full px-3 py-2 bg-white border ${errors.name ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500`}
                 required
               />
               {errors.name && <p className="mt-1 text-sm text-red-500">{errors.name}</p>}
@@ -308,7 +351,7 @@ export default function Component() {
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
-                className={`mt-1 block w-full px-3 py-2 bg-white border ${errors.email ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500`}
+                className={`mt-1 block w-full px-3 py-2 bg-white border ${errors.email ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500`}
                 required
               />
               {errors.email && <p className="mt-1 text-sm text-red-500">{errors.email}</p>}
@@ -321,7 +364,7 @@ export default function Component() {
                 name="phone"
                 value={formData.phone}
                 onChange={handleChange}
-                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
             <div>
@@ -332,7 +375,7 @@ export default function Component() {
                 name="linkedin"
                 value={formData.linkedin}
                 onChange={handleChange}
-                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
             <div>
@@ -343,7 +386,7 @@ export default function Component() {
                 name="github"
                 value={formData.github}
                 onChange={handleChange}
-                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
             <div>
@@ -354,7 +397,7 @@ export default function Component() {
                 name="twitter"
                 value={formData.twitter}
                 onChange={handleChange}
-                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
             <div>
@@ -365,7 +408,7 @@ export default function Component() {
                 name="portfolio"
                 value={formData.portfolio}
                 onChange={handleChange}
-                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
           </div>
@@ -381,7 +424,7 @@ export default function Component() {
                   placeholder="School *"
                   value={edu.school}
                   onChange={(e) => handleChange(e, 'education', index)}
-                  className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                  className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   required
                 />
                 <input
@@ -390,7 +433,7 @@ export default function Component() {
                   placeholder="Degree *"
                   value={edu.degree}
                   onChange={(e) => handleChange(e, 'education', index)}
-                  className="mt-2 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                  className="mt-2 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   required
                 />
                 <div className="grid grid-cols-2 gap-2 mt-2">
@@ -400,7 +443,7 @@ export default function Component() {
                     placeholder="Start Date"
                     value={edu.startDate}
                     onChange={(e) => handleChange(e, 'education', index)}
-                    className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                    className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   />
                   <input
                     type="text"
@@ -408,7 +451,7 @@ export default function Component() {
                     placeholder="End Date"
                     value={edu.endDate}
                     onChange={(e) => handleChange(e, 'education', index)}
-                    className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                    className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
               </div>
@@ -417,7 +460,7 @@ export default function Component() {
             <button
               type="button"
               onClick={() => addItem('education')}
-              className="mt-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+              className="mt-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
               Add Education
             </button>
@@ -434,7 +477,7 @@ export default function Component() {
                   placeholder="Job Title"
                   value={exp.title}
                   onChange={(e) => handleChange(e, 'experience', index)}
-                  className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                  className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
                 <input
                   type="text"
@@ -442,7 +485,7 @@ export default function Component() {
                   placeholder="Company"
                   value={exp.company}
                   onChange={(e) => handleChange(e, 'experience', index)}
-                  className="mt-2 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                  className="mt-2 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
                 <div className="grid grid-cols-2 gap-2 mt-2">
                   <input
@@ -451,7 +494,7 @@ export default function Component() {
                     placeholder="Start Date"
                     value={exp.startDate}
                     onChange={(e) => handleChange(e, 'experience', index)}
-                    className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                    className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   />
                   <input
                     type="text"
@@ -459,7 +502,7 @@ export default function Component() {
                     placeholder="End Date"
                     value={exp.endDate}
                     onChange={(e) => handleChange(e, 'experience', index)}
-                    className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                    className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
                 {exp.responsibilities.map((resp, respIndex) => (
@@ -469,7 +512,7 @@ export default function Component() {
                     placeholder={`Responsibility ${respIndex + 1}`}
                     value={resp}
                     onChange={(e) => handleChange(e, 'experience', index, 'responsibilities', respIndex)}
-                    className="mt-2 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                    className="mt-2 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   />
                 ))}
                 <button
@@ -496,7 +539,7 @@ export default function Component() {
             <button
               type="button"
               onClick={() => addItem('experience')}
-              className="mt-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+              className="mt-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
               Add Experience
             </button>
@@ -513,7 +556,7 @@ export default function Component() {
                   placeholder="Project Name"
                   value={project.name}
                   onChange={(e) => handleChange(e, 'projects', index)}
-                  className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                  className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
                 <input
                   type="text"
@@ -521,7 +564,7 @@ export default function Component() {
                   placeholder="Technologies Used"
                   value={project.technologies}
                   onChange={(e) => handleChange(e, 'projects', index)}
-                  className="mt-2 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                  className="mt-2 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
                 <input
                   type="url"
@@ -529,7 +572,7 @@ export default function Component() {
                   placeholder="Project Link"
                   value={project.link}
                   onChange={(e) => handleChange(e, 'projects', index)}
-                  className="mt-2 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                  className="mt-2 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
                 <input
                   type="url"
@@ -537,7 +580,7 @@ export default function Component() {
                   placeholder="GitHub Link"
                   value={project.githubLink}
                   onChange={(e) => handleChange(e, 'projects', index)}
-                  className="mt-2 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                  className="mt-2 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
                 <div className="grid grid-cols-2 gap-2 mt-2">
                   <input
@@ -546,7 +589,7 @@ export default function Component() {
                     placeholder="Start Date"
                     value={project.startDate}
                     onChange={(e) => handleChange(e, 'projects', index)}
-                    className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                    className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   />
                   <input
                     type="text"
@@ -554,7 +597,7 @@ export default function Component() {
                     placeholder="End Date"
                     value={project.endDate}
                     onChange={(e) => handleChange(e, 'projects', index)}
-                    className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                    className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
                 {project.details.map((detail, detailIndex) => (
@@ -564,7 +607,7 @@ export default function Component() {
                     placeholder={`Project Detail ${detailIndex + 1}`}
                     value={detail}
                     onChange={(e) => handleChange(e, 'projects', index, 'details', detailIndex)}
-                    className="mt-2 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                    className="mt-2 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   />
                 ))}
                 <button
@@ -590,7 +633,7 @@ export default function Component() {
             <button
               type="button"
               onClick={() => addItem('projects')}
-              className="mt-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+              className="mt-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
               Add Project
             </button>
@@ -607,7 +650,7 @@ export default function Component() {
                 name="languages"
                 value={formData.technicalSkills.languages}
                 onChange={(e) => handleChange(e, 'technicalSkills')}
-                className={`mt-1 block w-full px-3 py-2 bg-white border ${errors.technicalSkills ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500`}
+                className={`mt-1 block w-full px-3 py-2 bg-white border ${errors.technicalSkills ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500`}
                 required
               />
               {errors.technicalSkills && <p className="mt-1 text-sm text-red-500">{errors.technicalSkills}</p>}
@@ -620,7 +663,7 @@ export default function Component() {
                 name="frameworks"
                 value={formData.technicalSkills.frameworks}
                 onChange={(e) => handleChange(e, 'technicalSkills')}
-                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
             <div className="mt-2">
@@ -631,7 +674,7 @@ export default function Component() {
                 name="developerTools"
                 value={formData.technicalSkills.developerTools}
                 onChange={(e) => handleChange(e, 'technicalSkills')}
-                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
             <div className="mt-2">
@@ -642,7 +685,7 @@ export default function Component() {
                 name="libraries"
                 value={formData.technicalSkills.libraries}
                 onChange={(e) => handleChange(e, 'technicalSkills')}
-                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
 
@@ -668,7 +711,7 @@ export default function Component() {
                   placeholder="Section Title"
                   value={section.title}
                   onChange={(e) => handleChange(e, 'customSections', index)}
-                  className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                  className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
                 {section.items.map((item, itemIndex) => (
                   <div key={itemIndex} className="mt-2 grid grid-cols-2 gap-2">
@@ -678,7 +721,7 @@ export default function Component() {
                       placeholder="Content"
                       value={item.content}
                       onChange={(e) => handleChange(e, 'customSections', index, 'items', itemIndex)}
-                      className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                      className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     />
                     <input
                       type="url"
@@ -686,7 +729,7 @@ export default function Component() {
                       placeholder="Link (optional)"
                       value={item.link}
                       onChange={(e) => handleChange(e, 'customSections', index, 'items', itemIndex)}
-                      className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                      className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
                 ))}
@@ -702,7 +745,7 @@ export default function Component() {
             <button
               type="button"
               onClick={() => addItem('customSections')}
-              className="mt-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+              className="mt-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
               Add Custom Section
             </button>
@@ -710,7 +753,7 @@ export default function Component() {
 
           <button
             type="submit"
-            className="w-full py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+            className="w-full py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
             Create My Resume
           </button>
