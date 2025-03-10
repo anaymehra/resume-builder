@@ -143,6 +143,138 @@ export default function Component() {
     }
   };
 
+  // AI Prompt component with local state
+  const AIPromptInput = ({ section, index, context }) => {
+    const [localPrompt, setLocalPrompt] = useState('');
+    const [isLocalGenerating, setIsLocalGenerating] = useState(false);
+
+    const handleLocalGenerate = async () => {
+      if (!localPrompt.trim()) {
+        alert('Please enter a prompt for the AI');
+        return;
+      }
+
+      const token = localStorage.getItem('token');
+      if (!token) {
+        const error = { message: 'Please Login or SignUp to use AI features.' };
+        navigate('/auth', { state: error });
+        return;
+      }
+
+      setIsLocalGenerating(true);
+      try {
+        const response = await fetch(`${BASE_URL}/generate-content`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            prompt: localPrompt,
+            section: section,
+            context: context
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to generate content');
+        }
+
+        const result = await response.json();
+        
+        if (result.success) {
+          // Handle different response formats based on section
+          if (section === 'experience') {
+            // For experience responsibilities
+            const generatedPoints = Array.isArray(result.data) ? result.data : [result.data];
+            setFormData(prev => ({
+              ...prev,
+              experience: prev.experience.map((exp, i) => 
+                i === index ? { ...exp, responsibilities: generatedPoints } : exp
+              )
+            }));
+          } else if (section === 'projects') {
+            // For project details
+            const generatedPoints = Array.isArray(result.data) ? result.data : [result.data];
+            setFormData(prev => ({
+              ...prev,
+              projects: prev.projects.map((proj, i) => 
+                i === index ? { ...proj, details: generatedPoints } : proj
+              )
+            }));
+          } else if (section === 'skills') {
+            // For technical skills
+            const skills = result.data;
+            if (typeof skills === 'object' && skills !== null) {
+              setFormData(prev => ({
+                ...prev,
+                technicalSkills: {
+                  languages: skills.Languages || prev.technicalSkills.languages,
+                  frameworks: skills.Frameworks || prev.technicalSkills.frameworks,
+                  developerTools: skills.DeveloperTools || skills['Developer Tools'] || prev.technicalSkills.developerTools,
+                  libraries: skills.Libraries || prev.technicalSkills.libraries
+                }
+              }));
+            }
+          }
+          
+          // Clear the prompt after successful generation
+          setLocalPrompt('');
+        } else {
+          alert('Failed to generate content. Please try again.');
+        }
+      } catch (error) {
+        console.error('Error generating AI content:', error);
+        alert('Error generating content. Please try again.');
+      } finally {
+        setIsLocalGenerating(false);
+      }
+    };
+
+    return (
+      <div className="mt-4 border-t pt-4 bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-lg shadow-sm">
+        <div className="flex items-center mb-2">
+          <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mr-2">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </div>
+          <label className="text-sm font-medium text-gray-700">AI Resume Assistant</label>
+        </div>
+        
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Ask AI to generate professional content for this section..."
+            value={localPrompt}
+            onChange={(e) => setLocalPrompt(e.target.value)}
+            className="w-full px-4 py-3 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 pr-24"
+          />
+          <button
+            type="button"
+            onClick={handleLocalGenerate}
+            disabled={isLocalGenerating}
+            className="absolute right-2 top-2 px-4 py-1 border border-transparent text-sm font-medium rounded-md text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 transition-all duration-200"
+          >
+            {isLocalGenerating ? 
+              <span className="flex items-center">
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Generating
+              </span> : 
+              'Generate'
+            }
+          </button>
+        </div>
+        <p className="text-xs text-gray-500 mt-2 italic">
+          Tip: Try "Generate bullet points highlighting my leadership skills" or "Create technical descriptions for my project"
+        </p>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center p-4">
       <div className="bg-white p-8 rounded-lg shadow-xl max-w-4xl w-full">
@@ -327,7 +459,7 @@ export default function Component() {
                     placeholder="End Date"
                     value={exp.endDate}
                     onChange={(e) => handleChange(e, 'experience', index)}
-                    className="block w-full px-3 py-2 bg-white border  border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                    className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
                   />
                 </div>
                 {exp.responsibilities.map((resp, respIndex) => (
@@ -347,6 +479,18 @@ export default function Component() {
                 >
                   Add Responsibility
                 </button>
+                
+                {/* AI Assistant for Experience */}
+                <AIPromptInput 
+                  section="experience" 
+                  index={index} 
+                  context={{
+                    title: exp.title,
+                    company: exp.company,
+                    industry: '',
+                    skills: formData.technicalSkills.languages + ', ' + formData.technicalSkills.frameworks
+                  }} 
+                />
               </div>
             ))}
             <button
@@ -430,6 +574,17 @@ export default function Component() {
                 >
                   Add Project Detail
                 </button>
+                
+                {/* AI Assistant for Projects */}
+                <AIPromptInput 
+                  section="projects" 
+                  index={index} 
+                  context={{
+                    name: project.name,
+                    technologies: project.technologies,
+                    type: 'software development'
+                  }} 
+                />
               </div>
             ))}
             <button
@@ -490,6 +645,16 @@ export default function Component() {
                 className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
               />
             </div>
+
+            {/* AI Assistant for Skills */}
+            <AIPromptInput 
+              section="skills" 
+              index={0} 
+              context={{
+                role: 'software developer',
+                experience: formData.technicalSkills.languages + ', ' + formData.technicalSkills.frameworks
+              }} 
+            />
           </div>
 
           {/* Custom Sections */}

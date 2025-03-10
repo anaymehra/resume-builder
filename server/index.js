@@ -9,9 +9,14 @@ import fs from 'fs';
 import { promises as fsPromises } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
 
 const { Pool } = pkg;
 dotenv.config();
+
+// Initialize Google Generative AI
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,12 +24,12 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const allowedOrigins = [
     "https://resume-builder-nu-gray.vercel.app",
-    "http://localhost:3000" // Add localhost for local testing
+    "http://localhost:3000"
 ];
 
 app.use(cors({
     origin: allowedOrigins,
-    methods: ["POST"],
+    methods: ["POST", "GET"],
     credentials: true,
 }));
 
@@ -51,6 +56,73 @@ const authenticateToken = (req, res, next) => {
         next();
     });
 };
+
+// Generate AI content
+const generateResponse = async (prompt) => {
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    prompt = prompt || 'say "Prompt Error." and nothing else';
+
+    try {
+        const result = await model.generateContent(prompt);
+        return result.response.text();
+    } catch (error) {
+        console.log("Error generating content. ", error);
+        throw error;
+    }
+};
+
+// AI content generation endpoint
+app.post('/generate-content', authenticateToken, async (req, res) => {
+    try {
+        const { prompt, section, context } = req.body;
+        
+        let enhancedPrompt = prompt;
+        
+        // Enhance the prompt based on the section and context
+        if (section === 'experience') {
+            enhancedPrompt = `Generate 3-5 professional bullet points for a resume job description with the following details:
+            Job Title: ${context.title || 'Not specified'}
+            Company: ${context.company || 'Not specified'}
+            Industry: ${context.industry || 'Not specified'}
+            Skills to highlight: ${context.skills || 'Not specified'}
+            
+            Make the bullet points action-oriented, quantifiable, and focused on achievements. Each bullet point should start with a strong action verb.
+            Format as a JSON array of strings.
+            
+            Additional context: ${prompt}`;
+        } else if (section === 'projects') {
+            enhancedPrompt = `Generate 3-4 professional bullet points describing a project with the following details:
+            Project Name: ${context.name || 'Not specified'}
+            Technologies Used: ${context.technologies || 'Not specified'}
+            Project Type: ${context.type || 'Not specified'}
+            
+            Make the bullet points technical, achievement-focused, and highlight the impact. Each bullet point should start with a strong action verb.
+            Format as a JSON array of strings.
+            
+            Additional context: ${prompt}`;
+        } else if (section === 'skills') {
+            enhancedPrompt = `Generate a comprehensive list of technical skills for a ${context.role || 'software developer'} with experience in ${context.experience || 'web development'}.
+            Group them by: Languages, Frameworks, Developer Tools, and Libraries.
+            Format as a JSON object with these categories as keys and comma-separated values.
+            
+            Additional context: ${prompt}`;
+        }
+        
+        const aiResponse = await generateResponse(enhancedPrompt);
+        
+        // Try to parse as JSON if possible
+        try {
+            const jsonResponse = JSON.parse(aiResponse);
+            return res.json({ success: true, data: jsonResponse });
+        } catch (e) {
+            // If not valid JSON, return as text
+            return res.json({ success: true, data: aiResponse });
+        }
+    } catch (error) {
+        console.error('Error generating AI content:', error);
+        res.status(500).json({ success: false, message: 'Failed to generate content' });
+    }
+});
 
 // Generate PDF
 const generatePDF = async (data) => {
@@ -90,29 +162,39 @@ const generatePDF = async (data) => {
         ].filter(item => item && item.link);
 
         doc.moveDown(0.5);
+        const socialTextWidth = socialLinks.reduce((width, item) => width + doc.widthOfString(item.text), 0) + doc.widthOfString(' | ').repeat(socialLinks.length - 1);
+        const startX = (pageWidth - socialTextWidth) / 2;
+        let currentX = startX;
+
         socialLinks.forEach((item, index) => {
             doc.fillColor('blue')
-                .text(item.text, { link: item.link, underline: true, continued: index < socialLinks.length - 1 });
+                .text(item.text, currentX, doc.y, { 
+                    link: item.link, 
+                    underline: true, 
+                    continued: index < socialLinks.length - 1 
+                });
+            currentX += doc.widthOfString(item.text);
             if (index < socialLinks.length - 1) {
-                doc.text(' | ', { continued: true });
+                doc.fillColor('black').text(' | ', { continued: true });
+                currentX += doc.widthOfString(' | ');
             }
         });
 
-        doc.fillColor('black').moveDown(1.5);
+        doc.fillColor('black').moveDown(2);
 
         const addSection = (title) => {
-            doc.moveDown(1.5);
-            doc.font('Heading').fontSize(14).text(title.toUpperCase(), { underline: true });
             doc.moveDown(1);
+            doc.font('Heading').fontSize(14).text(title.toUpperCase(), { underline: true });
+            doc.moveDown(0.5);
         };
 
         // Education Section
         addSection('EDUCATION');
         data.education.forEach(edu => {
-            doc.font('Heading').fontSize(12).text(edu.school, { continued: true }).lineGap(3);
+            doc.font('Heading').fontSize(12).text(edu.school, { continued: true });
             doc.font('Body').fontSize(10).text(`  ${edu.startDate} - ${edu.endDate}`, { align: 'right' });
             doc.font('Body').fontSize(10).text(edu.degree);
-            doc.moveDown(1);
+            doc.moveDown(0.5);
         });
 
         // Experience Section
@@ -185,36 +267,38 @@ const generatePDF = async (data) => {
             });
         }
 
-
         // Technical Skills Section
         addSection('TECHNICAL SKILLS');
         Object.entries(data.technicalSkills).forEach(([key, value]) => {
             if (value) {
                 doc.font('Heading').fontSize(10).text(`${key.charAt(0).toUpperCase() + key.slice(1)}: `, { continued: true });
-                doc.font('Body').text(value, { width: pageWidth });
+                doc.font('Body').text(value, { width: pageWidth - doc.widthOfString(`${key}: `) });
             }
         });
 
         // Custom Sections
         if (data.customSections && data.customSections.length > 0) {
+            const bulletPoint = '•';
+            const bulletIndent = 10;
+            const contentIndent = 20;
+
             data.customSections.forEach(section => {
                 if (section.title && section.items && section.items.length > 0) {
                     addSection(section.title);
                     section.items.forEach(item => {
                         if (item.content) {
-                            doc.font('Body').fontSize(10).text(`• ${item.content}`, {
-                                indent: 10,
-                                align: 'left',
-                                width: pageWidth - 20,
-                                columns: 1,
-                                continued: item.link ? true : false,
-                                hangingIndent: 10 // Adjusted hanging indent
-                            });
+                            doc.text(bulletPoint, { continued: true, indent: bulletIndent })
+                               .font('Body').fontSize(10).text(item.content, { 
+                                    indent: contentIndent,
+                                    align: 'left',
+                                    width: pageWidth - contentIndent,
+                                    continued: item.link ? true : false
+                                });
                             if (item.link) {
-                                doc.text(` (${item.link})`, { link: item.link });
-                            } else {
-                                doc.text('');
+                                doc.fillColor('blue').text(` (${item.link})`, { link: item.link, underline: true });
+                                doc.fillColor('black');
                             }
+                            doc.moveDown(0.25);
                         }
                     });
                 }
@@ -247,8 +331,6 @@ const generatePDF = async (data) => {
         stream.on('error', reject);
     });
 };
-
-
 
 app.post('/login', async (req, res) => {
     const { email, password } = req.body;
@@ -313,9 +395,7 @@ app.post('/submit', authenticateToken, async (req, res) => {
     }
 });
 
-
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
-
