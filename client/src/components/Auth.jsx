@@ -1,36 +1,35 @@
-import React, { useState, useEffect } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
-import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/solid' 
+import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 const Auth = () => {
-  const location = useLocation()
-  const navigate = useNavigate()
-  const [isSignup, setIsSignup] = useState(false)
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [name, setName] = useState('')
-  const [error, setError] = useState(null)
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const BASE_URL = 'https://resume-builder-wyqb.onrender.com'
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [isSignup, setIsSignup] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [name, setName] = useState('');
+  const [error, setError] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const BASE_URL = 'https://resume-builder-wyqb.onrender.com';
 
   useEffect(() => {
     if (location.state && location.state.message) {
       setError(location.state.message);
     }
     setIsSignup(location.state?.isSignup || false);
-  }, [location])
+  }, [location]);
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    setError(null)
+    e.preventDefault();
+    setError(null);
     if (isSignup && password !== confirmPassword) {
-      setError("Passwords don't match")
-      return
+      setError("Passwords don't match");
+      return;
     }
-    const url = isSignup ? `${BASE_URL}/signup` : `${BASE_URL}/login`
-    const body = isSignup ? { name, email, password } : { email, password }
+    const url = isSignup ? `${BASE_URL}/signup` : `${BASE_URL}/login`;
+    const body = isSignup ? { name, email, password } : { email, password };
     try {
       const response = await fetch(url, {
         method: 'POST',
@@ -39,35 +38,35 @@ const Auth = () => {
         },
         credentials: 'include',
         body: JSON.stringify(body)
-      })
+      });
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || 'An error occurred')
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'An error occurred');
       }
 
-      const data = await response.json()
+      const data = await response.json();
       if (data.token) {
-        localStorage.setItem('token', data.token)
-        localStorage.setItem('name', data.name || '')
-        navigate('/home')
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('name', data.name || '');
+        navigate('/home');
       } else {
-        setError('Authentication failed. Please try again.')
+        setError('Authentication failed. Please try again.');
       }
     } catch (error) {
-      console.error('Auth error:', error)
-      setError(error.message || 'An unexpected error occurred')
+      console.error('Auth error:', error);
+      setError(error.message || 'An unexpected error occurred');
     }
-  }
+  };
 
   const toggleMode = () => {
-    setIsSignup((prev) => !prev)
-    setEmail('')
-    setPassword('')
-    setConfirmPassword('')
-    setName('')
-    setError(null)
-  }
+    setIsSignup((prev) => !prev);
+    setEmail('');
+    setPassword('');
+    setConfirmPassword('');
+    setName('');
+    setError(null);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center p-4">
@@ -130,9 +129,9 @@ const Auth = () => {
                 onClick={() => setShowPassword(!showPassword)}
               >
                 {showPassword ? (
-                  <EyeSlashIcon className="h-5 w-5 text-gray-400" />
+                  <span className="text-gray-400">&#128064;</span> // Unicode eye icon
                 ) : (
-                  <EyeIcon className="h-5 w-5 text-gray-400" />
+                  <span className="text-gray-400">&#128065;</span> // Unicode eye-slash icon
                 )}
               </button>
             </div>
@@ -158,9 +157,9 @@ const Auth = () => {
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 >
                   {showConfirmPassword ? (
-                    <EyeSlashIcon className="h-5 w-5 text-gray-400" />
+                    <span className="text-gray-400">&#128064;</span> // Unicode eye icon
                   ) : (
-                    <EyeIcon className="h-5 w-5 text-gray-400" />
+                    <span className="text-gray-400">&#128065;</span> // Unicode eye-slash icon
                   )}
                 </button>
               </div>
@@ -180,7 +179,7 @@ const Auth = () => {
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default Auth
+export default Auth;

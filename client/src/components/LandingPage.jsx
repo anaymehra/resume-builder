@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react'
-import { ArrowUpIcon } from '@heroicons/react/24/solid'
-import { useNavigate } from 'react-router-dom'
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 export default function Component() {
   const navigate = useNavigate();
@@ -78,14 +77,14 @@ export default function Component() {
         <div className="flex gap-12 mb-12">
           <div>
             <p className="text-3xl font-bold text-purple-600 flex items-center">
-              <ArrowUpIcon className="w-6 h-6 mr-2" />
+              <span className="mr-2">&#8599;</span>
               38%
             </p>
             <p className="text-gray-600">more interviews</p>
           </div>
           <div>
             <p className="text-3xl font-bold text-purple-600 flex items-center">
-              <ArrowUpIcon className="w-6 h-6 mr-2" />
+              <span className="mr-2">&#8599;</span>
               23%
             </p>
             <p className="text-gray-600">more likely to get a job offer</p>
@@ -93,5 +92,5 @@ export default function Component() {
         </div>
       </div>
     </div>
-  )
+  );
 }
