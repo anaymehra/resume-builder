@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { ClipboardCopyIcon, LightningBoltIcon, XIcon, CheckIcon } from "@heroicons/react/outline"
+import { ClipboardDocumentIcon, BoltIcon, XMarkIcon, CheckIcon } from "@heroicons/react/24/outline";
+
 
 export default function Component() {
   const BASE_URL = "https://resume-builder-wyqb.onrender.com"
